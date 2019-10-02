@@ -5,7 +5,10 @@ async function getRandomWallpaper(apiToken) {
 		url += `&apikey=${apiToken}`
 	}
 
-	const results = await axios.get(url)
+	const results = await axios.get(url);
+	const urls = results.data.data.map(imageData => imageData.path);
+	const unusedUrls = urls.slice(1);
+	browser.storage.sync.set({cachedBackgrounds: unusedUrls});
 	return results.data.data[0].path
 }
 
@@ -15,9 +18,15 @@ async function getUserSettings(apiToken) {
 }
 
 const init = _ => {
-	browser.storage.sync.get([ 'apiToken' ])
-    	.then( async ({ apiToken }) => {
-			const wallPath = await getRandomWallpaper(apiToken);
+	browser.storage.sync.get([ 'apiToken', 'cachedBackgrounds' ])
+    	.then( async ({ apiToken, cachedBackgrounds }) => {
+			let wallPath;
+			if (cachedBackgrounds !== undefined && cachedBackgrounds.length > 0){
+				wallPath = cachedBackgrounds.pop();
+				browser.storage.sync.set({cachedBackgrounds});
+			} else {
+				wallPath = await getRandomWallpaper(apiToken);
+			}
 			document.body.style.backgroundImage = `url('${wallPath}')`;
 		}).catch( async () => {
 			const wallPath = await getRandomWallpaper(null);
